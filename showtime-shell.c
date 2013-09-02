@@ -25,7 +25,7 @@
 #define PERSISTENTPATH STOS_BASE"/persistent"
 #define CACHEPATH      STOS_BASE"/cache"
 #define MNTPATH        STOS_BASE"/mnt"
-#define SHOWTIMEMOUNTPATH MNTPATH"/mnt/showtime"
+#define SHOWTIMEMOUNTPATH MNTPATH"/showtime"
 
 #define PERSISTENTDEV "/dev/mmcblk0p3"
 #define CACHEDEV      "/dev/mmcblk0p4"
@@ -35,9 +35,8 @@
 #define SHOWTIME_PKG_PATH PERSISTENTPATH"/packages/showtime.sqfs"
 #define SHOWTIME_DEFAULT_PATH "/boot/showtime.sqfs"
 
-#define SLEEP_BEFORE_REBOOT 60
-
 static int got_sigint;
+static int reboot_on_failure;
 
 /**
  *
@@ -479,8 +478,12 @@ domount(const char *dev, const char *path)
 static void
 restart(void)
 {
-  trace(LOG_ALERT, "Will restart in %d seconds", SLEEP_BEFORE_REBOOT);
-  sleep(SLEEP_BEFORE_REBOOT);
+  if(!reboot_on_failure) {
+    trace(LOG_ALERT, "Exiting due to fatal error");
+    exit(2);
+  }
+  trace(LOG_ALERT, "Will restart in %d seconds", reboot_on_failure);
+  sleep(reboot_on_failure);
   sync();
   reboot(LINUX_REBOOT_CMD_RESTART);
   while(1) {
@@ -510,8 +513,19 @@ dosigint(int x)
  *
  */
 int
-main(void)
+main(int argc, char **argv)
 {
+  int c;
+  while((c = getopt(argc, argv, "r:")) != -1) {
+    switch(c) {
+    case 'r':
+      reboot_on_failure = atoi(optarg);
+      break;
+    }
+  }
+
+
+
   signal(SIGINT, dosigint);
 
   mkdir("/tmp/stos", 0777);
