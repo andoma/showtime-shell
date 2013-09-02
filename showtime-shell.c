@@ -35,6 +35,8 @@
 #define SHOWTIME_PKG_PATH PERSISTENTPATH"/packages/showtime.sqfs"
 #define SHOWTIME_DEFAULT_PATH "/boot/showtime.sqfs"
 
+#define SLEEP_BEFORE_REBOOT 60
+
 static int got_sigint;
 
 /**
@@ -477,6 +479,8 @@ domount(const char *dev, const char *path)
 static void
 restart(void)
 {
+  trace(LOG_ALERT, "Will restart in %d seconds", SLEEP_BEFORE_REBOOT);
+  sleep(SLEEP_BEFORE_REBOOT);
   sync();
   reboot(LINUX_REBOOT_CMD_RESTART);
   while(1) {
@@ -492,8 +496,6 @@ static void
 panic(const char *str)
 {
   trace(LOG_ALERT, "%s", str);
-  trace(LOG_ALERT, "Will restart in one minute");
-  sleep(60);
   restart();
 }
 
@@ -588,8 +590,9 @@ main(void)
       panic("Guru meditation. Showtime can no longer start.");
     }
 
-    if(exitcode == RUN_BUNDLE_FORK_FAILURE)
+    if(exitcode == RUN_BUNDLE_FORK_FAILURE) {
       restart();
+    }
 
     if(exitcode == RUN_BUNDLE_COMMAND_CRASH) {
       sleep(1);
@@ -604,9 +607,9 @@ main(void)
       continue;
     }
 
-    if(exitcode < 0)
+    if(exitcode < 0) {
       restart();
-
+    }
     if(shortrun)
       sleep(1);
   }
