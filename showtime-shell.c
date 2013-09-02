@@ -492,7 +492,8 @@ static void
 panic(const char *str)
 {
   trace(LOG_ALERT, "%s", str);
-  sleep(5);
+  trace(LOG_ALERT, "Will restart in one minute");
+  sleep(60);
   restart();
 }
 
