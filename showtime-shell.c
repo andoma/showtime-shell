@@ -512,6 +512,8 @@ main(void)
 {
   signal(SIGINT, dosigint);
 
+  mkdir("/tmp/stos", 0777);
+
   mkdir(MNTPATH, 0777);
 
   openlog("showtimeshell", LOG_PID, LOG_USER);
