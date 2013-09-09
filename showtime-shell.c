@@ -516,6 +516,10 @@ int
 main(int argc, char **argv)
 {
   int c;
+
+  if(!access("/boot/noshowtime", R_OK))
+    exit(0);
+
   while((c = getopt(argc, argv, "r:")) != -1) {
     switch(c) {
     case 'r':
