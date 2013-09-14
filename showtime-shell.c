@@ -628,6 +628,20 @@ main(int argc, char **argv)
     if(exitcode < 0) {
       restart();
     }
+
+    if(exitcode == 14) {
+      // Exit to shell
+      exit(0);
+    }
+
+    if(exitcode == 15) {
+      // System reboot
+      doumount(CACHEPATH);
+      doumount(PERSISTENTPATH);
+      sync();
+      reboot(LINUX_REBOOT_CMD_RESTART);
+    }
+
     if(shortrun)
       sleep(1);
   }
