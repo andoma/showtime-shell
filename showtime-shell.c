@@ -101,7 +101,7 @@ loopmount(const char *image, const char *mountpoint,
   trace(LOG_INFO, "loopmount: opening image %s as %s",
 	 image, ro ? "read-only" : "read-write");
 
-  int fd = open(image, mode);
+  int fd = open(image, mode | O_CLOEXEC);
   if(fd < 0) {
     trace(LOG_ERR, "loopmount: failed to open image %s -- %s",
 	   image, strerror(errno));
@@ -129,7 +129,7 @@ loopmount(const char *image, const char *mountpoint,
       }
     }
 
-    lm->loopfd = open(lm->devpath, mode);
+    lm->loopfd = open(lm->devpath, mode | O_CLOEXEC);
     if(lm->loopfd == -1) {
       trace(LOG_ERR, "loopmount: Unable to open %s -- %s",
 	     lm->devpath, strerror(errno));
