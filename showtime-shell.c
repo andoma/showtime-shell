@@ -517,9 +517,6 @@ main(int argc, char **argv)
 {
   int c;
 
-  if(!access("/boot/noshowtime", R_OK))
-    exit(0);
-
   while((c = getopt(argc, argv, "r:")) != -1) {
     switch(c) {
     case 'r':
@@ -527,10 +524,6 @@ main(int argc, char **argv)
       break;
     }
   }
-
-
-
-  signal(SIGINT, dosigint);
 
   mkdir("/tmp/stos", 0777);
 
@@ -543,7 +536,6 @@ main(int argc, char **argv)
   setup_partitions();
   trace(LOG_INFO, "Done checking SD card disk layout");
 
-
   if(domount(PERSISTENTDEV, PERSISTENTPATH)) {
     format_partition(2);
     if(domount(PERSISTENTDEV, PERSISTENTPATH))
@@ -555,6 +547,11 @@ main(int argc, char **argv)
     if(domount(CACHEDEV, CACHEPATH))
       panic("Unable to mount partition for cache data after formatting");
   }
+
+  if(!access("/boot/noshowtime", R_OK))
+    exit(0);
+
+  signal(SIGINT, dosigint);
 
   int shortrun = 0;
   int ever_run_ok = 0;
