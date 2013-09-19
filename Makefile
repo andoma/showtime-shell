@@ -2,7 +2,7 @@
 PROG=showtime-shell
 
 ${PROG}: ${PROG}.c
-	${CC}  -Wall -o $@ $<
+	${CC}  -Wall -o $@ $< -lpthread
 
 clean:
 	rm -f ${PROG}

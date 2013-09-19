@@ -8,6 +8,7 @@
 #include <sys/types.h>
 #include <sys/reboot.h>
 #include <sys/wait.h>
+#include <pthread.h>
 
 #include <signal.h>
 #include <fcntl.h>
@@ -186,7 +187,7 @@ loopunmount(loopmount_t *lm, const char *mountpath)
 
 
 #define RUN_BUNDLE_MOUNT_PROBLEMS    -1
-#define RUN_BUNDLE_FORK_FAILURE      -2
+#define RUN_BUNDLE_RESOURCE_FAILURE  -2
 #define RUN_BUNDLE_COMMAND_NOT_FOUND -3
 #define RUN_BUNDLE_COMMAND_CRASH     -4
 
@@ -197,7 +198,8 @@ extern char **environ;
  */
 static int
 run_squashfs_bundle(const char *path, const char *mountpath,
-		    const char *binpath, const char *argv[])
+		    const char *binpath, const char *argv[],
+		    int pipefd[2])
 {
   loopmount_t lm;
   char cmd[1024];
@@ -217,11 +219,12 @@ run_squashfs_bundle(const char *path, const char *mountpath,
   if(p == -1) {
     trace(LOG_INFO, "bundle: Unable to start '%s' -- %s", cmd,
 	   strerror(errno));
-    return RUN_BUNDLE_FORK_FAILURE;
+    return RUN_BUNDLE_RESOURCE_FAILURE;
   }
 
 
   if(p == 0) {
+    close(pipefd[0]);
     execve(cmd, (char **)argv, environ);
     exit(1);
   }
@@ -242,7 +245,7 @@ run_squashfs_bundle(const char *path, const char *mountpath,
   if(pp == -1) {
     trace(LOG_INFO, "bundle: Wait error %s' -- %s", cmd,
 	   strerror(errno));
-    return RUN_BUNDLE_FORK_FAILURE;
+    return RUN_BUNDLE_RESOURCE_FAILURE;
   }
 
 
@@ -270,12 +273,118 @@ run_squashfs_bundle(const char *path, const char *mountpath,
 }
 
 
+
+static int sshd_running;
+
+/**
+ *
+ */
+static void
+start_sshd(void)
+{
+  if(sshd_running)
+    return;
+
+  mkdir(PERSISTENTPATH"/etc",0700);
+  mkdir(PERSISTENTPATH"/etc/dropbear",0700);
+
+  if(!access(PERSISTENTPATH"/etc/dropbear/dropbear_rsa_host_key", R_OK))
+    system("/usr/bin/dropbearkey -t rsa -f "PERSISTENTPATH"/etc/dropbear/dropbear_rsa_host_key");
+
+
+  const char *cmd = "/usr/sbin/dropbear";
+
+  trace(LOG_INFO, "Starting %s", cmd);
+
+
+  const char *args[] = {
+    cmd,
+    "-r",
+    PERSISTENTPATH"/etc/dropbear/dropbear_rsa_host_key",
+    "-F",
+    NULL
+  };
+
+  pid_t p = fork();
+  if(p == -1) {
+    trace(LOG_INFO, "Unable to start '%s' -- %s", cmd,
+	  strerror(errno));
+    return;
+  }
+
+  if(p == 0) {
+    execve(cmd, (char **)args, environ);
+    exit(1);
+  }
+
+  sshd_running = p;
+}
+
+
+/**
+ *
+ */
+static void
+stop_sshd(void)
+{
+  if(!sshd_running)
+    return;
+
+  kill(sshd_running, SIGTERM);
+
+  int ret;
+  waitpid(sshd_running, &ret, 0);
+
+  trace(LOG_INFO, "sshd exited with %d", ret);
+  sshd_running = 0;
+}
+
+
+/**
+ *
+ */
+static void *
+showtime_com_thread(void *aux)
+{
+  int fd = *(int *)aux;
+  while(1) {
+    char cmd;
+    if(read(fd, &cmd, 1) != 1)
+      break;
+
+    switch(cmd) {
+    case 1:
+      start_sshd();
+      break;
+    case 2:
+      stop_sshd();
+      break;
+    }
+
+  }
+
+  return NULL;
+}
+
+
+
 /**
  *
  */
 static int
 start_showtime_from_bundle(const char *bundle)
 {
+  int pipefd[2];
+  pthread_t tid;
+  char fdtxt[10];
+
+  if(pipe(pipefd))
+    return RUN_BUNDLE_RESOURCE_FAILURE;
+
+  pthread_create(&tid, NULL, showtime_com_thread, &pipefd[0]);
+
+  snprintf(fdtxt, sizeof(fdtxt), "%d", pipefd[1]);
+
   const char *args[] = {
     SHOWTIMEMOUNTPATH"/bin/showtime",
     "-d",
@@ -285,10 +394,19 @@ start_showtime_from_bundle(const char *bundle)
     PERSISTENTPATH"/showtime",
     "--upgrade-path",
     SHOWTIME_PKG_PATH,
+    "--showtime-shell-fd",
+    fdtxt,
     NULL
   };
 
-  return run_squashfs_bundle(bundle, SHOWTIMEMOUNTPATH, "bin/showtime", args);
+  int r = run_squashfs_bundle(bundle, SHOWTIMEMOUNTPATH, "bin/showtime", args,
+			      pipefd);
+
+
+  close(pipefd[0]);
+  close(pipefd[1]);
+  pthread_join(tid, NULL);
+  return r;
 }
 
 
@@ -548,8 +666,10 @@ main(int argc, char **argv)
       panic("Unable to mount partition for cache data after formatting");
   }
 
-  if(!access("/boot/noshowtime", R_OK))
+  if(!access("/boot/noshowtime", R_OK)) {
+    start_sshd();
     exit(0);
+  }
 
   signal(SIGINT, dosigint);
 
@@ -605,7 +725,7 @@ main(int argc, char **argv)
       panic("Guru meditation. Showtime can no longer start.");
     }
 
-    if(exitcode == RUN_BUNDLE_FORK_FAILURE) {
+    if(exitcode == RUN_BUNDLE_RESOURCE_FAILURE) {
       restart();
     }
 
