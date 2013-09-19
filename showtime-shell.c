@@ -288,9 +288,8 @@ start_sshd(void)
   mkdir(PERSISTENTPATH"/etc",0700);
   mkdir(PERSISTENTPATH"/etc/dropbear",0700);
 
-  if(!access(PERSISTENTPATH"/etc/dropbear/dropbear_rsa_host_key", R_OK))
+  if(access(PERSISTENTPATH"/etc/dropbear/dropbear_rsa_host_key", R_OK))
     system("/usr/bin/dropbearkey -t rsa -f "PERSISTENTPATH"/etc/dropbear/dropbear_rsa_host_key");
-
 
   const char *cmd = "/usr/sbin/dropbear";
 
