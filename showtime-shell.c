@@ -633,36 +633,44 @@ int
 main(int argc, char **argv)
 {
   int c;
-
-  while((c = getopt(argc, argv, "r:")) != -1) {
+  int prep = 0;
+  while((c = getopt(argc, argv, "r:p")) != -1) {
     switch(c) {
     case 'r':
       reboot_on_failure = atoi(optarg);
       break;
+    case 'p':
+      prep = 1;
+      break;
     }
   }
 
-  mkdir("/tmp/stos", 0777);
+  if(prep) {
 
-  mkdir(MNTPATH, 0777);
+    mkdir("/tmp/stos", 0777);
 
-  openlog("showtimeshell", LOG_PID, LOG_USER);
+    mkdir(MNTPATH, 0777);
 
-  trace(LOG_INFO, "Checking SD card disk layout");
+    openlog("showtimeshell", LOG_PID, LOG_USER);
 
-  setup_partitions();
-  trace(LOG_INFO, "Done checking SD card disk layout");
+    trace(LOG_INFO, "Checking SD card disk layout");
 
-  if(domount(PERSISTENTDEV, PERSISTENTPATH)) {
-    format_partition(2);
-    if(domount(PERSISTENTDEV, PERSISTENTPATH))
-      panic("Unable to mount partition for persistent data after formatting");
-  }
+    setup_partitions();
+    trace(LOG_INFO, "Done checking SD card disk layout");
 
-  if(domount(CACHEDEV, CACHEPATH)) {
-    format_partition(3);
-    if(domount(CACHEDEV, CACHEPATH))
-      panic("Unable to mount partition for cache data after formatting");
+    if(domount(PERSISTENTDEV, PERSISTENTPATH)) {
+      format_partition(2);
+      if(domount(PERSISTENTDEV, PERSISTENTPATH))
+	panic("Unable to mount partition for persistent data after formatting");
+    }
+
+    if(domount(CACHEDEV, CACHEPATH)) {
+      format_partition(3);
+      if(domount(CACHEDEV, CACHEPATH))
+	panic("Unable to mount partition for cache data after formatting");
+    }
+
+    exit(0);
   }
 
   if(!access("/boot/noshowtime", R_OK)) {
