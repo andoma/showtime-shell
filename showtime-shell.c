@@ -283,13 +283,16 @@ static int sshd_running;
 static void
 start_sshd(void)
 {
+  struct stat st;
   if(sshd_running)
     return;
 
   mkdir(PERSISTENTPATH"/etc",0700);
   mkdir(PERSISTENTPATH"/etc/dropbear",0700);
 
-  if(access(PERSISTENTPATH"/etc/dropbear/dropbear_rsa_host_key", R_OK))
+  if(access(PERSISTENTPATH"/etc/dropbear/dropbear_rsa_host_key", R_OK) ||
+     stat(PERSISTENTPATH"/etc/dropbear/dropbear_rsa_host_key", &st) ||
+     st.st_size < 10)
     system("/usr/bin/dropbearkey -t rsa -f "PERSISTENTPATH"/etc/dropbear/dropbear_rsa_host_key");
 
   const char *cmd = "/usr/sbin/dropbear";
@@ -318,6 +321,8 @@ start_sshd(void)
       close(i);
 
     execve(cmd, (char **)args, environ);
+    trace(LOG_INFO, "Unable to execve %s -- %s", cmd, strerror(errno));
+
     exit(1);
   }
 
