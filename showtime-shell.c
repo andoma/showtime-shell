@@ -212,7 +212,8 @@ run_squashfs_bundle(const char *path, const char *mountpath,
 
   snprintf(cmd, sizeof(cmd), "%s/%s", mountpath, binpath);
 
-  trace(LOG_INFO, "bundle: Starting %s", cmd);
+  trace(LOG_INFO, "bundle: Starting '%s' pipe:[%d,%d]", cmd,
+	pipefd[0], pipefd[1]);
 
 
   pid_t p = fork();
@@ -312,6 +313,10 @@ start_sshd(void)
   }
 
   if(p == 0) {
+    int i;
+    for(i = 3; i < 1024; i++)
+      close(i);
+
     execve(cmd, (char **)args, environ);
     exit(1);
   }
@@ -404,7 +409,9 @@ start_showtime_from_bundle(const char *bundle)
 
   close(pipefd[0]);
   close(pipefd[1]);
+  trace(LOG_INFO, "Waiting for thread");
   pthread_join(tid, NULL);
+  trace(LOG_INFO, "Thread joined");
   return r;
 }
 
@@ -645,13 +652,13 @@ main(int argc, char **argv)
     }
   }
 
+  openlog("showtimeshell", LOG_PID, LOG_USER);
+
   if(prep) {
 
     mkdir("/tmp/stos", 0777);
 
     mkdir(MNTPATH, 0777);
-
-    openlog("showtimeshell", LOG_PID, LOG_USER);
 
     trace(LOG_INFO, "Checking SD card disk layout");
 
