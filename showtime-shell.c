@@ -588,7 +588,12 @@ setup_partitions(void)
 static int
 domount(const char *dev, const char *path)
 {
+  char fsckcmd[128];
   doumount(path);
+
+  snprintf(fsckcmd, sizeof(fsckcmd), "fsck.ext4 -f -p %s", dev);
+  system(fsckcmd);
+
   mkdir(path, 0777);
   if(mount(dev, path, "ext4",
 	   MS_NOATIME | MS_NOSUID | MS_NODEV | MS_NOEXEC,
