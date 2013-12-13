@@ -495,7 +495,7 @@ format_partition(int partid)
   trace(LOG_NOTICE, "Formatting partition %d [%s]", partid, label);
 
   snprintf(cmdline, sizeof(cmdline), 
-	   "mkfs.ext4 -O ^has_journal -L %s -E stride=2,stripe-width=1024 -b 4096 /dev/mmcblk0p%d", 
+	   "mkfs.ext4 -L %s -E stride=2,stripe-width=1024 -b 4096 /dev/mmcblk0p%d", 
 	   label, partid);
 
   return runcmd(cmdline);
