@@ -643,6 +643,24 @@ dosigint(int x)
   got_sigint = 1;
 }
 
+static void
+stop_by_pidfile(const char *pidfile)
+{
+  char buf[32] = {0};
+
+  FILE *fp = fopen(pidfile, "r");
+  if(fp == NULL)
+    return;
+
+  if(fgets(buf, 31, fp) != NULL) {
+    int pid = atoi(buf);
+    kill(pid, SIGTERM);
+  }
+  fclose(fp);
+  return;
+}
+
+
 /**
  *
  */
@@ -777,8 +795,17 @@ main(int argc, char **argv)
 
     if(exitcode == 15) {
       // System reboot
+
+      stop_by_pidfile("/var/run/connmand.pid");
+
       doumount(CACHEPATH);
       doumount(PERSISTENTPATH);
+
+      system("/usr/bin/killall udevd");
+
+      doumount("/lib/modules");
+      doumount("/lib/firmware");
+      doumount("/boot");
       sync();
       reboot(LINUX_REBOOT_CMD_RESTART);
     }
