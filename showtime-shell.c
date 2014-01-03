@@ -28,13 +28,17 @@
 #define MNTPATH        STOS_BASE"/mnt"
 #define SHOWTIMEMOUNTPATH MNTPATH"/showtime"
 
-#define PERSISTENTDEV "/dev/mmcblk0p2"
-#define CACHEDEV      "/dev/mmcblk0p3"
-
+#define DEFAULT_PERSISTENT_PART "/dev/mmcblk0p2"
+#define DEFAULT_CACHE_PART      "/dev/mmcblk0p3"
+#define DEFAULT_FLASH_DEV       "/dev/mmcblk0"
 #define PERSISTENT_SIZE (256 * 1024 * 1024)
 
 #define SHOWTIME_PKG_PATH PERSISTENTPATH"/packages/showtime.sqfs"
 #define SHOWTIME_DEFAULT_PATH "/boot/showtime.sqfs"
+
+const char *persistent_part;
+const char *cache_part;
+const char *flash_dev;
 
 static int got_sigint;
 static int reboot_on_failure;
@@ -461,12 +465,12 @@ create_partition(int start, int end, const char *type, const char *fstype)
 {
   char cmdline[512];
 
-  trace(LOG_NOTICE, "Creating %s partition [%s] start:%d end:%d (%d KiB)",
-	type, fstype, start, end, (end - start) / 2);
+  trace(LOG_NOTICE, "Creating %s partition [%s] start:%d end:%d (%d KiB) on %s",
+	type, fstype, start, end, (end - start) / 2, flash_dev);
 
   snprintf(cmdline, sizeof(cmdline),
-	   "parted -m /dev/mmcblk0 unit s mkpart %s %s %d %d",
-	   type, fstype, start, end);
+	   "parted -m %s unit s mkpart %s %s %d %d",
+	   flash_dev, type, fstype, start, end);
 
   return runcmd(cmdline);
 }
@@ -480,23 +484,26 @@ format_partition(int partid)
 {
   char cmdline[512];
   const char *label;
+  const char *part;
   switch(partid) {
   case 2:
     label = "persistent";
+    part = persistent_part;
     break;
   case 3:
     label = "cache";
+    part = cache_part;
     break;
   default:
     trace(LOG_ERR, "Don't know how to format partition %d", partid);
     return -1;
   }
 
-  trace(LOG_NOTICE, "Formatting partition %d [%s]", partid, label);
+  trace(LOG_NOTICE, "Formatting partition %d [%s] device: %s", partid, label, part);
 
-  snprintf(cmdline, sizeof(cmdline), 
-	   "mkfs.ext4 -L %s -E stride=2,stripe-width=1024 -b 4096 /dev/mmcblk0p%d", 
-	   label, partid);
+  snprintf(cmdline, sizeof(cmdline),
+	   "mkfs.ext4 -L %s -E stride=2,stripe-width=1024 -b 4096 %s",
+	   label, part);
 
   return runcmd(cmdline);
 }
@@ -508,7 +515,10 @@ format_partition(int partid)
 static int
 setup_partitions(void)
 {
-  FILE *fp = popen("parted -m /dev/mmcblk0 unit s print free", "r");
+  char cmd[256];
+  snprintf(cmd, sizeof(cmd), "parted -m %s unit s print free", flash_dev);
+
+  FILE *fp = popen(cmd, "r");
   char *line = NULL;
   size_t len = 0;
   ssize_t read;
@@ -682,6 +692,14 @@ main(int argc, char **argv)
 
   openlog("showtimeshell", LOG_PID, LOG_USER);
 
+  persistent_part = getenv("STOS_persistent") ?: DEFAULT_PERSISTENT_PART;
+  cache_part      = getenv("STOS_cache")      ?: DEFAULT_CACHE_PART;
+  flash_dev       = getenv("STOS_flash")      ?: DEFAULT_FLASH_DEV;
+
+  trace(LOG_INFO, "     Flash device on %s", flash_dev);
+  trace(LOG_INFO, "Persistent device on %s", persistent_part);
+  trace(LOG_INFO, "     Cache device on %s", cache_part);
+
   if(prep) {
 
     mkdir("/tmp/stos", 0777);
@@ -693,15 +711,15 @@ main(int argc, char **argv)
     setup_partitions();
     trace(LOG_INFO, "Done checking SD card disk layout");
 
-    if(domount(PERSISTENTDEV, PERSISTENTPATH)) {
+    if(domount(persistent_part, PERSISTENTPATH)) {
       format_partition(2);
-      if(domount(PERSISTENTDEV, PERSISTENTPATH))
+      if(domount(persistent_part, PERSISTENTPATH))
 	panic("Unable to mount partition for persistent data after formatting");
     }
 
-    if(domount(CACHEDEV, CACHEPATH)) {
+    if(domount(cache_part, CACHEPATH)) {
       format_partition(3);
-      if(domount(CACHEDEV, CACHEPATH))
+      if(domount(cache_part, CACHEPATH))
 	panic("Unable to mount partition for cache data after formatting");
     }
 
@@ -748,7 +766,7 @@ main(int argc, char **argv)
       trace(LOG_ERR, "Showtime keeps respawning quickly, clearing cache");
       doumount(CACHEPATH);
       format_partition(3);
-      if(domount(CACHEDEV, CACHEPATH))
+      if(domount(cache_part, CACHEPATH))
 	panic("Unable to mount partition for cache data after formatting");
       continue;
     }
@@ -756,9 +774,9 @@ main(int argc, char **argv)
     if(shortrun == 6) {
 
       trace(LOG_ERR, "Showtime keeps respawning quickly, clearing persistent partition");
-      doumount(CACHEPATH);
+      doumount(PERSISTENTPATH);
       format_partition(2);
-      if(domount(CACHEDEV, CACHEPATH))
+      if(domount(persistent_part, PERSISTENTPATH))
 	panic("Unable to mount partition for persistent data after formatting");
       continue;
     }
