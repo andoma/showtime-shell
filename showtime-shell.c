@@ -503,9 +503,14 @@ format_partition(int partid)
 
   trace(LOG_NOTICE, "Formatting partition %d [%s] device: %s", partid, label, part);
 
+
+  const char *ext4_opts = getenv("STOS_ext4_args");
+
   snprintf(cmdline, sizeof(cmdline),
-	   "mkfs.ext4 -L %s -E stride=2,stripe-width=1024 -b 4096 %s",
-	   label, part);
+	   "mkfs.ext4 %s%s -L %s -E stride=2,stripe-width=1024 -b 4096 %s",
+           ext4_opts ? "-O " : "",
+           ext4_opts ?: "",
+           label, part);
 
   return runcmd(cmdline);
 }
