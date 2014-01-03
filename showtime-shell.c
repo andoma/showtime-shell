@@ -436,6 +436,8 @@ start_showtime_from_bundle(const char *bundle)
 static int
 runcmd(const char *cmdline)
 {
+  trace(LOG_INFO, "Running '%s'", cmdline);
+
   int ret = system(cmdline);
 
   if(ret == -1) {
@@ -677,6 +679,9 @@ stop_by_pidfile(const char *pidfile)
 int
 main(int argc, char **argv)
 {
+  if(atoi(getenv("STOS_noshowtime-shell") ?: ""))
+    return 0;
+
   int c;
   int prep = 0;
   while((c = getopt(argc, argv, "r:p")) != -1) {
@@ -699,6 +704,10 @@ main(int argc, char **argv)
   trace(LOG_INFO, "     Flash device on %s", flash_dev);
   trace(LOG_INFO, "Persistent device on %s", persistent_part);
   trace(LOG_INFO, "     Cache device on %s", cache_part);
+
+  int noshowtime = !access("/boot/noshowtime", R_OK);
+
+  noshowtime |= atoi(getenv("STOS_noshowtime") ?: "");
 
   if(prep) {
 
@@ -726,7 +735,7 @@ main(int argc, char **argv)
     exit(0);
   }
 
-  if(!access("/boot/noshowtime", R_OK)) {
+  if(noshowtime) {
     start_sshd();
     exit(0);
   }
