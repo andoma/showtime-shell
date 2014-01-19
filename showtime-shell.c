@@ -487,14 +487,17 @@ format_partition(int partid)
   char cmdline[512];
   const char *label;
   const char *part;
+  const char *opts = getenv("STOS_mkfs_ext4_args");
   switch(partid) {
   case 2:
     label = "persistent";
     part = persistent_part;
+    opts = getenv("STOS_mkfs_ext4_args_persistent") ?: opts;
     break;
   case 3:
     label = "cache";
     part = cache_part;
+    opts = getenv("STOS_mkfs_ext4_args_cache") ?: opts;
     break;
   default:
     trace(LOG_ERR, "Don't know how to format partition %d", partid);
@@ -504,14 +507,21 @@ format_partition(int partid)
   trace(LOG_NOTICE, "Formatting partition %d [%s] device: %s", partid, label, part);
 
 
-  const char *ext4_opts = getenv("STOS_ext4_args");
+  if(opts != NULL) {
 
-  snprintf(cmdline, sizeof(cmdline),
-	   "mkfs.ext4 %s%s -L %s -E stride=2,stripe-width=1024 -b 4096 %s",
-           ext4_opts ? "-O " : "",
-           ext4_opts ?: "",
-           label, part);
+    snprintf(cmdline, sizeof(cmdline),
+             "mkfs.ext4 -L %s %s %s",
+             label, opts, part);
 
+  } else {
+    const char *ext4_opts = getenv("STOS_ext4_args");
+
+    snprintf(cmdline, sizeof(cmdline),
+             "mkfs.ext4 %s%s -L %s -E stride=2,stripe-width=1024 -b 4096 %s",
+             ext4_opts ? "-O " : "",
+             ext4_opts ?: "",
+             label, part);
+  }
   return runcmd(cmdline);
 }
 
