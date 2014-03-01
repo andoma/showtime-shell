@@ -835,7 +835,7 @@ main(int argc, char **argv)
       exit(0);
     }
 
-    if(exitcode == 15) {
+    if(exitcode == 15 || exitcode == 11) {
       // System reboot
 
       stop_by_pidfile("/var/run/connmand.pid");
@@ -849,7 +849,8 @@ main(int argc, char **argv)
       doumount("/lib/firmware");
       doumount("/boot");
       sync();
-      reboot(LINUX_REBOOT_CMD_RESTART);
+      reboot(exitcode == 11 ? LINUX_REBOOT_CMD_POWER_OFF :
+	     LINUX_REBOOT_CMD_RESTART);
     }
 
     if(shortrun)
