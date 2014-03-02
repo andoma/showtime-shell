@@ -540,7 +540,10 @@ format_partition(int partid)
     return -1;
   }
 
-  trace(LOG_NOTICE, "Formatting partition %d [%s] device: %s", partid, label, part);
+  status("Formatting %s partition", label);
+
+  trace(LOG_NOTICE, "Formatting partition %d [%s] device: %s",
+	partid, label, part);
 
 
   if(opts != NULL) {
@@ -649,13 +652,17 @@ setup_partitions(void)
  *
  */
 static int
-domount(const char *dev, const char *path)
+domount(const char *dev, const char *path, const char *label)
 {
   char fsckcmd[128];
   doumount(path);
 
+  status("Checking %s partition", label);
+
   snprintf(fsckcmd, sizeof(fsckcmd), "/usr/sbin/fsck.ext4 -f -p %s", dev);
   system(fsckcmd);
+
+  status("Mouting %s partition", label);
 
   mkdir(path, 0777);
   if(mount(dev, path, "ext4",
@@ -774,17 +781,15 @@ main(int argc, char **argv)
     setup_partitions();
     trace(LOG_INFO, "Done checking SD card disk layout");
 
-    if(domount(persistent_part, PERSISTENTPATH)) {
-      status("Formatting settings partition");
+    if(domount(persistent_part, PERSISTENTPATH, "persistent")) {
       format_partition(2);
-      if(domount(persistent_part, PERSISTENTPATH))
+      if(domount(persistent_part, PERSISTENTPATH, "persistent"))
 	panic("Unable to mount partition for persistent data after formatting");
     }
 
-    if(domount(cache_part, CACHEPATH)) {
-      status("Formatting cache partition");
+    if(domount(cache_part, CACHEPATH, "cache")) {
       format_partition(3);
-      if(domount(cache_part, CACHEPATH))
+      if(domount(cache_part, CACHEPATH, "cache"))
 	panic("Unable to mount partition for cache data after formatting");
     }
 
@@ -835,7 +840,7 @@ main(int argc, char **argv)
       trace(LOG_ERR, "Showtime keeps respawning quickly, clearing cache");
       doumount(CACHEPATH);
       format_partition(3);
-      if(domount(cache_part, CACHEPATH))
+      if(domount(cache_part, CACHEPATH, "cache"))
 	panic("Unable to mount partition for cache data after formatting");
       continue;
     }
@@ -845,7 +850,7 @@ main(int argc, char **argv)
       trace(LOG_ERR, "Showtime keeps respawning quickly, clearing persistent partition");
       doumount(PERSISTENTPATH);
       format_partition(2);
-      if(domount(persistent_part, PERSISTENTPATH))
+      if(domount(persistent_part, PERSISTENTPATH, "persistent"))
 	panic("Unable to mount partition for persistent data after formatting");
       continue;
     }
