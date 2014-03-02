@@ -788,11 +788,12 @@ main(int argc, char **argv)
 	panic("Unable to mount partition for cache data after formatting");
     }
 
+    status("Initializing network");
     exit(0);
   }
 
   if(noshowtime) {
-    status("Initializing network");
+    status("Running without Showtime (Starting SSH instead)");
     start_sshd();
     exit(0);
   }
