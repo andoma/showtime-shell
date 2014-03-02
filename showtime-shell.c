@@ -10,6 +10,9 @@
 #include <sys/wait.h>
 #include <pthread.h>
 
+#include <netinet/in.h>
+#include <arpa/inet.h>
+
 #include <signal.h>
 #include <fcntl.h>
 #include <errno.h>
@@ -50,6 +53,39 @@ typedef struct loopmount {
   char devpath[128];
   int loopfd;
 } loopmount_t;
+
+/**
+ *
+ */
+static void
+status(const char *fmt, ...)
+{
+  static int trace_fd = -1;
+  static struct sockaddr_in log_server;
+
+  char msg[1000];
+  va_list ap;
+
+  if(trace_fd == -1) {
+
+    log_server.sin_family = AF_INET;
+    log_server.sin_port = htons(4004);
+    log_server.sin_addr.s_addr = inet_addr("127.0.0.1");
+    trace_fd = socket(PF_INET, SOCK_DGRAM, IPPROTO_UDP);
+    if(trace_fd == -1)
+      return;
+  }
+
+  if(trace_fd == -1)
+    return;
+
+  va_start(ap, fmt);
+  vsnprintf(msg, sizeof(msg), fmt, ap);
+  va_end(ap);
+
+  sendto(trace_fd, msg, strlen(msg), 0,
+	 (struct sockaddr*)&log_server, sizeof(log_server));
+}
 
 
 /**
@@ -659,6 +695,7 @@ restart(void)
 static void
 panic(const char *str)
 {
+  status("%s", str);
   trace(LOG_ALERT, "%s", str);
   restart();
 }
@@ -726,6 +763,8 @@ main(int argc, char **argv)
 
   if(prep) {
 
+    status("Checking SD card");
+
     mkdir("/tmp/stos", 0777);
 
     mkdir(MNTPATH, 0777);
@@ -736,12 +775,14 @@ main(int argc, char **argv)
     trace(LOG_INFO, "Done checking SD card disk layout");
 
     if(domount(persistent_part, PERSISTENTPATH)) {
+      status("Formatting settings partition");
       format_partition(2);
       if(domount(persistent_part, PERSISTENTPATH))
 	panic("Unable to mount partition for persistent data after formatting");
     }
 
     if(domount(cache_part, CACHEPATH)) {
+      status("Formatting cache partition");
       format_partition(3);
       if(domount(cache_part, CACHEPATH))
 	panic("Unable to mount partition for cache data after formatting");
@@ -751,11 +792,14 @@ main(int argc, char **argv)
   }
 
   if(noshowtime) {
+    status("Initializing network");
     start_sshd();
     exit(0);
   }
 
   signal(SIGINT, dosigint);
+
+  status("Starting Showtime");
 
   int shortrun = 0;
   int ever_run_ok = 0;
