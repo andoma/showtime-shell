@@ -436,7 +436,7 @@ start_showtime_from_bundle(const char *bundle)
 
   const char *args[] = {
     SHOWTIMEMOUNTPATH"/bin/showtime",
-    "-d",
+    "--with-poweroff",
     "--cache",
     CACHEPATH"/showtime",
     "--persistent",
