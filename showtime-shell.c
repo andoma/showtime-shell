@@ -798,14 +798,14 @@ main(int argc, char **argv)
   }
 
   if(noshowtime) {
-    status("Running without Showtime (Starting SSH instead)");
+    status("Running without Movian (Starting SSH instead)");
     start_sshd();
     exit(0);
   }
 
   signal(SIGINT, dosigint);
 
-  status("Starting Showtime");
+  status("Starting Movian");
 
   int shortrun = 0;
   int ever_run_ok = 0;
@@ -837,7 +837,7 @@ main(int argc, char **argv)
     }
 
     if(shortrun == 5) {
-      trace(LOG_ERR, "Showtime keeps respawning quickly, clearing cache");
+      trace(LOG_ERR, "Movian keeps respawning quickly, clearing cache");
       doumount(CACHEPATH);
       format_partition(3);
       if(domount(cache_part, CACHEPATH, "cache"))
@@ -847,7 +847,7 @@ main(int argc, char **argv)
 
     if(shortrun == 6) {
 
-      trace(LOG_ERR, "Showtime keeps respawning quickly, clearing persistent partition");
+      trace(LOG_ERR, "Movian keeps respawning quickly, clearing persistent partition");
       doumount(PERSISTENTPATH);
       format_partition(2);
       if(domount(persistent_part, PERSISTENTPATH, "persistent"))
@@ -856,7 +856,7 @@ main(int argc, char **argv)
     }
 
     if(shortrun == 7) {
-      panic("Guru meditation. Showtime can no longer start.");
+      panic("Guru meditation. Movian can no longer start.");
     }
 
     if(exitcode == RUN_BUNDLE_RESOURCE_FAILURE) {
