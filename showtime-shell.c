@@ -549,7 +549,7 @@ format_partition(int partid)
   if(opts != NULL) {
 
     snprintf(cmdline, sizeof(cmdline),
-             "mkfs.ext4 -L %s %s %s",
+             "mkfs.ext4 -F -L %s %s %s",
              label, opts, part);
 
   } else {
