@@ -806,7 +806,7 @@ main(int argc, char **argv)
   }
 
 
-  if(access(STARTSCRIPT, X_OK)) {
+  if(!access(STARTSCRIPT, X_OK)) {
     status("Running boot script");
     system(STARTSCRIPT);
   }
