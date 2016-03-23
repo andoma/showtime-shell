@@ -39,6 +39,8 @@
 #define SHOWTIME_PKG_PATH PERSISTENTPATH"/packages/showtime.sqfs"
 #define SHOWTIME_DEFAULT_PATH "/boot/showtime.sqfs"
 
+#define STARTSCRIPT PERSISTENTPATH"/scripts/boot.sh"
+
 const char *persistent_part;
 const char *cache_part;
 const char *flash_dev;
@@ -801,6 +803,12 @@ main(int argc, char **argv)
     status("Running without Movian (Starting SSH instead)");
     start_sshd();
     exit(0);
+  }
+
+
+  if(access(STARTSCRIPT, X_OK)) {
+    status("Running boot script");
+    system(STARTSCRIPT);
   }
 
   signal(SIGINT, dosigint);
