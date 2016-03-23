@@ -668,7 +668,7 @@ domount(const char *dev, const char *path, const char *label)
 
   mkdir(path, 0777);
   if(mount(dev, path, "ext4",
-	   MS_NOATIME | MS_NOSUID | MS_NODEV | MS_NOEXEC,
+	   MS_NOATIME | MS_NOSUID | MS_NODEV,
 	   "")) {
     trace(LOG_ERR, "Unable to mount %s on %s -- %s",
 	  dev, path, strerror(errno));
